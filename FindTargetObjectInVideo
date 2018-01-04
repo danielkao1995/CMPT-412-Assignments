@@ -1,0 +1,109 @@
+clear all, close all
+% Read video and get input
+video = load('CMPT412_blackcup.mat');
+video = video.blackcup;
+imshow(video(:,:,:,1));
+[x_input,y_input] = ginput(1);
+r = 50;
+% Create mask image
+target = imcrop(video(:,:,:,1),[x_input-r y_input-r 2*r 2*r]);
+% Eliminate background
+for i = 1:size(target,1)
+    for j = 1:size(target,2)
+        if target(i,j,1) == 0 & target(i,j,2) == 0 & target(i,j,3) == 0
+            target(i,j,1) = NaN;
+            target(i,j,2) = NaN;
+            target(i,j,3) = NaN;
+        end
+    end
+end
+% Convert from 8-bit to 3-bit
+newtarget = fix(double(target)/(2^8/2^3))+1;
+% Initialize colour histogram
+M = zeros(8,8,8);
+% Count occurance of each
+for i = 1:size(newtarget,1)
+    for j = 1:size(newtarget,2)
+        currentpixel = newtarget(i,j,:);
+        M(currentpixel(1), currentpixel(2), currentpixel(3)) = M(currentpixel(1), currentpixel(2), currentpixel(3)) + 1;
+    end
+end
+% Create disk mask
+D = zeros(r*2);
+for i = 1:size(D,1)
+    for j = 1:size(D,2)
+        if sqrt((size(D,1)/2 - i)^2 + (size(D,2)/2 - j)^2) < r
+            D(i,j) = 1;
+        end
+    end
+end
+for k = 1:size(video,4)
+    % Close window so i do not get 40 windows opened
+    close;
+    % Read test image
+    newframe = video(:,:,:,k);
+    % Convert from 8-bit to 3-bit
+    newframe3bit = fix(double(newframe)/(2^8/2^3))+1;
+ 
+    % Initialize colour histogram
+    I = zeros(8,8,8);
+    % Count occurance of each
+    for i = 1:size(newframe3bit,1)
+        for j = 1:size(newframe3bit,2)
+            currentpixel = newframe3bit(i,j,:);
+            I(currentpixel(1), currentpixel(2), currentpixel(3)) = I(currentpixel(1), currentpixel(2), currentpixel(3)) + 1;
+        end
+    end
+ 
+    % Initialize colour histogram
+    R = zeros(8,8,8);
+    % Count occurance of each
+    for i = 1:size(newframe3bit,1)
+        for j = 1:size(newframe3bit,2)
+            currentpixel = newframe3bit(i,j,:);
+            R(currentpixel(1), currentpixel(2), currentpixel(3)) = min(M(currentpixel(1), currentpixel(2), currentpixel(3))/I(currentpixel(1), currentpixel(2), currentpixel(3)),1);
+        end
+    end
+ 
+    % Backproject ratio values onto image
+    for i = 1:size(newframe3bit,1)
+        for j = 1:size(newframe3bit,2)
+            currentpixel = newframe3bit(i,j,:);
+            backprojection(i,j,:) = R(currentpixel(1),currentpixel(2),currentpixel(3));
+        end
+    end
+ 
+    % Convolve disk mask
+    backprojection = conv2(D, backprojection);
+ 
+    % Locate point
+    [max_val, index] = max(backprojection(:));
+    backprojection = backprojection./max_val;
+ 
+    x_coord = index/size(backprojection,1)-r;
+    y_coord = mod(index,size(backprojection,1))-r;
+ 
+    % Show image
+    figure, imshow(newframe), hold;
+   
+    plot(x_coord,y_coord,'x','LineWidth',2,'Color','g'); % Highlight centroid
+    plot(x_coord+r*cos(0:0.01:2*pi),y_coord+r*sin(0:0.01:2*pi),'LineWidth',2,'Color','g');
+    %figure, imshow(backprojection);
+     
+    %Put result into file
+    filename = fullfile('part2.gif');
+    drawnow
+    gifframe = getframe(1);
+    im = frame2im(gifframe);
+    [imind,cm] = rgb2ind(im,256);
+    if k == 1;
+      imwrite(imind,cm,filename,'gif', 'Loopcount',inf);
+    else
+      imwrite(imind,cm,filename,'gif','WriteMode','append');
+    end
+    
+    clear backprojection;
+    clear index;
+    clear x_coord;
+    clear y_coord;
+end
