@@ -1,0 +1,87 @@
+clear all, close all
+% Read Object
+target = imread('crunchberries2.sqr.128.bmp');
+% Eliminate background
+for i = 1:size(target,1)
+    for j = 1:size(target,2)
+        if target(i,j,1) == 0 & target(i,j,2) == 0 & target(i,j,3) == 0
+            target(i,j,1) = NaN;
+            target(i,j,2) = NaN;
+            target(i,j,3) = NaN;
+        end
+    end
+end
+% Convert from 8-bit to 3-bit
+newtarget = fix(double(target)/(2^8/2^3))+1;
+% Initialize colour histogram
+M = zeros(8,8,8);
+% Count occurance of each
+for i = 1:size(newtarget,1)
+    for j = 1:size(newtarget,2)
+        currentpixel = newtarget(i,j,:);
+        M(currentpixel(1), currentpixel(2), currentpixel(3)) = M(currentpixel(1), currentpixel(2), currentpixel(3)) + 1;
+    end
+end
+% Read Test Image
+frame = imread('SwainCollageForBackprojectionTesting.bmp');
+% Eliminate background
+for i = 1:size(frame,1)
+    for j = 1:size(frame,2)
+        if frame(i,j,1) == 0 & frame(i,j,2) == 0 & frame(i,j,3) == 0
+            frame(i,j,1) = NaN;
+            frame(i,j,2) = NaN;
+            frame(i,j,3) = NaN;
+        end
+    end
+end
+% Convert from 8-bit to 3-bit
+newframe = fix(double(frame)/(2^8/2^3))+1;
+% Initialize colour histogram
+I = zeros(8,8,8);
+% Count occurance of each
+for i = 1:size(newframe,1)
+    for j = 1:size(newframe,2)
+        currentpixel = newframe(i,j,:);
+        I(currentpixel(1), currentpixel(2), currentpixel(3)) = I(currentpixel(1), currentpixel(2), currentpixel(3)) + 1;
+    end
+end
+% Initialize colour histogram
+R = zeros(8,8,8);
+% Count occurance of each
+for i = 1:size(newframe,1)
+    for j = 1:size(newframe,2)
+        currentpixel = newframe(i,j,:);
+        R(currentpixel(1), currentpixel(2), currentpixel(3)) = min(M(currentpixel(1), currentpixel(2), currentpixel(3))/I(currentpixel(1), currentpixel(2), currentpixel(3)),1);
+    end
+end
+% Find ratio values onto image
+for i = 1:size(newframe,1)
+    for j = 1:size(newframe,2)
+        currentpixel = newframe(i,j,:);
+        backprojection(i,j,:) = R(currentpixel(1),currentpixel(2),currentpixel(3));
+    end
+end
+% Create mask
+r = min(size(newtarget,1),size(newtarget,2))/2;
+D = zeros(r*2);
+for i = 1:size(D,1)
+    for j = 1:size(D,2)
+        if sqrt((size(D,1)/2 - i)^2 + (size(D,2)/2 - j)^2) < r
+            D(i,j) = 1;
+        end
+    end
+end
+% Convolve mask with ratio
+backprojection = conv2(D, backprojection);
+% Locate object, center of circle for draw
+[max_val, index] = max(backprojection(:));
+backprojection = backprojection./max_val;
+x = index/size(backprojection,1)-r;
+y = mod(index,size(backprojection,1))-r;
+% Show image
+figure, imshow(frame);
+hold;
+ang=0:0.01:2*pi; 
+xp=r*cos(ang);
+yp=r*sin(ang);
+plot(x+xp,y+yp,'LineWidth',2,'Color','red');
