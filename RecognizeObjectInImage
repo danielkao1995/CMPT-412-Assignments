@@ -1,0 +1,36 @@
+%Initiation, Read image and show
+image = imread ('Cig01.JPG');
+%image = imread ('Cig_on_Orange1.JPG');
+%image = imread ('Cig03.JPG');
+%image = imread ('Cig05.JPG');
+%image = imread ('Cig07.JPG');
+%image = imread ('Cig08.JPG');
+%image = imread ('Cig09.JPG');
+%image = imread ('Cig13.JPG');
+figure; imshow(image);title('Original');
+%Find RGB of image
+imageR = squeeze (image(:,:,1) );
+imageG = squeeze (image(:,:,2));
+imageB = squeeze (image(:,:,3));
+%white = [255,255,255]
+whitelow = 205;
+whitehigh = 255;
+%Select colors close to white and combine into image
+BW3 = roicolor(imageR, whitelow, whitehigh) + roicolor(imageR,whitelow,whitehigh)+roicolor(imageR,whitelow,whitehigh);
+figure;imshow(BW3);
+%Smoothing
+se=strel('diamond',2);
+%BW3 Morphological opening and filling holes
+BW3 = imclose (BW3, se);
+BW3 = imfill(BW3,'holes');
+BW3 = imerode (BW3, se);
+BW3 = bwareaopen (BW3, 40);
+figure;imshow(BW3);
+BW3Boundaries = bwboundaries (BW3);
+%Draw onto the figure instead of a plot figure
+hold on
+for x=1:length(BW3Boundaries)
+    thisBoundary = BW3Boundaries {x};
+    plot(thisBoundary(:,2), thisBoundary(:,1),'b','LineWidth',2);
+end
+hold off
